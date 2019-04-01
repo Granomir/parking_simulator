@@ -1,8 +1,13 @@
 package com.patrushev.parking_simulator;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.*;
 
 public class Parking {
+    Logger logger = LoggerFactory.getLogger(Parking.class);
+
     //общее кол-во мест
     private int capacity;
     //порядковый номер последней заехавшей машины
@@ -15,63 +20,76 @@ public class Parking {
     private List<Ticket> busyTickets;
     //очередь ожидающих въезда машин
     private List<Car> waitingCars;
+    //длительность въезда/выезда
+    private int duration;
 
-    public Parking(int capacity) {
+    public Parking(int capacity, int duration) {
+        this.duration = duration;
         parkedCars = new HashMap<>();
         this.capacity = capacity;
         busyTickets = new ArrayList<>();
-        waitingCars = new ArrayList<>();
+        waitingCars = new LinkedList<>();
         freeTickets = new LinkedList<>();
         for (int i = 1; i <= capacity; i++) {
-             freeTickets.add(new Ticket(i));
+            freeTickets.add(new Ticket(i));
         }
+        logger.info("Создана парковка на {} мест", capacity);
     }
 
     public void park(Car car) {
+        logger.info("Машина с госномером {} собирается припарковаться", car.getNumber());
         if (parkedCars.size() < capacity) {
+            try {
+                Thread.sleep(duration);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
             Ticket busyTicket = freeTickets.remove(0);
             car.setTicketId(busyTicket);
             busyTickets.add(busyTicket);
             parkedCars.put(++ordinalNumberOfLastCar, car);
+            logger.info("На парковке есть место. Машина получила въездной билет с id - {}. Порядковый номер машины на парковке - {}", busyTicket.getId(), ordinalNumberOfLastCar);
+            logger.info("Теперь на парковке {} свободных мест", getFreeSpace());
         } else {
+            logger.info("На парковке нет мест - машина ждет свою очередь");
             waitingCars.add(car);
         }
     }
 
     public void unpark(int ticketId) {
-        if (busyTickets.contains(new Ticket(ticketId))) {
-            parkedCars.entrySet().removeIf(entry -> entry.getValue().getTicket().getId() == ticketId);
-            if (waitingCars.size() > 0) {
-                for (Car waitingCar : waitingCars) { //нифига так нельзя наверно, потому что каждый въезд/выезд должен быть в отдельном потоке - или прям здесь и запускать эти потоки
-                    park(waitingCar);
+        logger.info("Машина с билетом с id - {} собирается покинуть парковку", ticketId);
+        for (Ticket busyTicket : busyTickets) {
+            if (busyTicket.getId() == ticketId) {
+                try {
+                    Thread.sleep(duration);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
-            }
-        } else if (freeTickets.contains(new Ticket(ticketId))) {
-            System.out.printf("Билет с номером %d еще не использован.", ticketId);
-        } else {
-            System.out.printf("Билета с номером %d не существует.", ticketId);
-        }
-    }
-
-    public void unpark(int[] ticketsId) {
-        for (int ticketId : ticketsId) {
-            if (busyTickets.contains(new Ticket(ticketId))) {
                 parkedCars.entrySet().removeIf(entry -> entry.getValue().getTicket().getId() == ticketId);
+                freeTickets.add(busyTicket);
+                busyTickets.remove(busyTicket);
+                logger.info("Машина с билетом с id - {} вернула билет и покинула парковку", ticketId);
+                logger.info("Теперь на парковке {} свободных мест", getFreeSpace());
                 if (waitingCars.size() > 0) { //наверно в этом методе это лучше вынести после цикла for - чтоб новые тачки заезжали только после того как выйдут все
                     for (Car waitingCar : waitingCars) { //нифига так нельзя наверно, потому что каждый въезд/выезд должен быть в отдельном потоке - или прям здесь и запускать эти потоки
-                        park(waitingCar);
+                        new Thread(() -> park(waitingCar));
                     }
                 }
-            } else if (freeTickets.contains(new Ticket(ticketId))) {
-                System.out.printf("Билет с номером %d еще не использован.", ticketId);
-            } else {
-                System.out.printf("Билета с номером %d не существует.", ticketId);
+                return;
             }
         }
+        System.out.printf("Билет с номером %d еще не использован.", ticketId);
     }
 
-    public Map<Integer, Car> carsList() {
-        return parkedCars;
+    public void carsList() {
+        if (parkedCars.size() > 0) {
+            for (Map.Entry<Integer, Car> entry : parkedCars.entrySet()) {
+                System.out.println("В данный момент на парковке находятся автомобили:");
+                System.out.println("авто №" + entry.getKey() + "с билетом №" + entry.getValue().getTicket().getId());
+            }
+        } else {
+            System.out.println("Парковка пуста");
+        }
     }
 
     public int getFreeSpace() {
