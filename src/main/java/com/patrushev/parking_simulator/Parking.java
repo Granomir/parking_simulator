@@ -18,8 +18,6 @@ public class Parking {
     private List<Ticket> freeTickets;
     //список выданных билетов
     private List<Ticket> busyTickets;
-    //очередь ожидающих въезда машин
-    private List<Car> waitingCars;
     //длительность въезда/выезда
     private int duration;
 
@@ -28,7 +26,6 @@ public class Parking {
         parkedCars = new HashMap<>();
         this.capacity = capacity;
         busyTickets = new ArrayList<>();
-        waitingCars = new LinkedList<>();
         freeTickets = new LinkedList<>();
         for (int i = 1; i <= capacity; i++) {
             freeTickets.add(new Ticket(i));
@@ -51,8 +48,7 @@ public class Parking {
             logger.info("На парковке есть место. Машина получила въездной билет с id - {}. Порядковый номер машины на парковке - {}", busyTicket.getId(), ordinalNumberOfLastCar);
             logger.info("Теперь на парковке {} свободных мест", getFreeSpace());
         } else {
-            logger.info("На парковке закончилось место - машина занимает место в очереди на въезд");
-            waitingCars.add(car);
+            logger.info("На парковке закончилось место - машина с госномером {} не попадает на парковку", car.getNumber());
         }
     }
 
@@ -70,13 +66,6 @@ public class Parking {
                 busyTickets.remove(busyTicket);
                 logger.info("Машина с билетом с id - {} вернула билет и покинула парковку", ticketId);
                 logger.info("Теперь на парковке {} свободных мест", getFreeSpace());
-                if (waitingCars.size() > 0) { //здесь запускаются все 5 потоков и 5 машин пытаются запарковаться по 5 раз
-                    for (Car waitingCar : waitingCars) {
-                        if (waitingCars.size() > 0) {
-                            new Thread(() -> park(waitingCar)).start();
-                        }
-                    }
-                }
                 return;
             }
         }
