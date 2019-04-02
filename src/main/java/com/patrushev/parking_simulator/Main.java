@@ -6,38 +6,31 @@ import org.slf4j.LoggerFactory;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Main {
     private static Logger logger = LoggerFactory.getLogger(Main.class);
 
+    private static ExecutorService executorService = Executors.newFixedThreadPool(2);
+
     private static List<String> usedCarNumbers = new ArrayList<>();
 
     public static void main(String[] args) throws IOException {
-        Parking parking = new Parking(5, 1000);
+        Parking parking = new Parking(5, 3000);
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         while (true) {
             System.out.println("Введите команду:");
             String command = br.readLine();
             if (command.startsWith("p")) {
-                logger.info("вызвана команда для парковки машины");
-                int carQuantity = Integer.parseInt(command.substring(2));
-                for (int i = 0; i < carQuantity; i++) {
-                    new Thread(() -> parking.park(new Car(getUniqueRandomCarNumber()))).start();
-                }
+                parkCars(parking, command);
             } else if (command.startsWith("u") && command.substring(2).startsWith("[")) {
-                String[] ticketNumbers = command.substring(3, command.length() - 1).split(",");
-                for (String ticketNumber : ticketNumbers) {
-                    int tempTicketNumber = Integer.parseInt(ticketNumber);
-                    new Thread(() -> parking.unpark(tempTicketNumber)).start();
-                }
+                unparkCars(parking, command);
             } else if (command.startsWith("u")) {
-                int tempTicketNumber = Integer.parseInt(command.substring(2));
-                System.out.println("распарковка машины №" + tempTicketNumber);
-                new Thread(() -> parking.unpark(tempTicketNumber)).start();
+                unparkCar(parking, command);
             } else if (command.equals("l")) {
                 parking.carsList();
             } else if (command.equals("c")) {
@@ -50,10 +43,49 @@ public class Main {
         }
     }
 
+    private static void parkCars(Parking parking, String command) {
+        logger.info("вызвана команда для парковки машины");
+        int carQuantity = Integer.parseInt(command.substring(2));
+        for (int i = 0; i < carQuantity; i++) {
+            String carNumber = getUniqueRandomCarNumber();
+            executorService.execute(() -> parking.park(new Car(carNumber)));
+        }
+    }
+
+    private static void unparkCars(Parking parking, String command) {
+        String[] ticketNumbers = command.substring(3, command.length() - 1).split(",");
+        for (String ticketNumber : ticketNumbers) {
+            int tempTicketNumber = Integer.parseInt(ticketNumber);
+            executorService.execute(() -> parking.unpark(tempTicketNumber));
+        }
+    }
+
+    private static void unparkCar(Parking parking, String command) {
+        int tempTicketNumber = Integer.parseInt(command.substring(2));
+        System.out.println("распарковка машины №" + tempTicketNumber);
+        executorService.execute(() -> parking.unpark(tempTicketNumber));
+    }
+
     private static String getUniqueRandomCarNumber() {
-        byte[] array = new byte[6];
-        new Random().nextBytes(array);
-        String carNumber = new String(array, Charset.forName("UTF-8"));
+        int wordLeftLimit = 1072;
+        int wordRightLimit = 1103;
+        int digitLeftLimit = 48;
+        int digitRightLimit = 57;
+        int targetStringLength = 6;
+        Random random = new Random();
+        StringBuilder buffer = new StringBuilder(targetStringLength);
+        for (int i = 0; i < targetStringLength; i++) {
+            if (i == 0 || i == 4 || i == 5) {
+                int randomLimitedInt = wordLeftLimit + (int)
+                        (random.nextFloat() * (wordRightLimit - wordLeftLimit + 1));
+                buffer.append((char) randomLimitedInt);
+            } else {
+                int randomLimitedInt = digitLeftLimit + (int)
+                        (random.nextFloat() * (digitRightLimit - digitLeftLimit + 1));
+                buffer.append((char) randomLimitedInt);
+            }
+        }
+        String carNumber = buffer.toString();
         if (usedCarNumbers.contains(carNumber)) {
             carNumber = getUniqueRandomCarNumber();
         }
