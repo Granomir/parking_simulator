@@ -26,17 +26,18 @@ public class Main {
                 logger.info("вызвана команда для парковки машины");
                 int carQuantity = Integer.parseInt(command.substring(2));
                 for (int i = 0; i < carQuantity; i++) {
-                    new Thread(() -> parking.park(new Car(getUniqueRandomCarNumber())));
+                    new Thread(() -> parking.park(new Car(getUniqueRandomCarNumber()))).start();
                 }
             } else if (command.startsWith("u") && command.substring(2).startsWith("[")) {
                 String[] ticketNumbers = command.substring(3, command.length() - 1).split(",");
                 for (String ticketNumber : ticketNumbers) {
                     int tempTicketNumber = Integer.parseInt(ticketNumber);
-                    new Thread(() -> parking.unpark(tempTicketNumber));
+                    new Thread(() -> parking.unpark(tempTicketNumber)).start();
                 }
             } else if (command.startsWith("u")) {
                 int tempTicketNumber = Integer.parseInt(command.substring(2));
-                new Thread(() -> parking.unpark(tempTicketNumber));
+                System.out.println("распарковка машины №" + tempTicketNumber);
+                new Thread(() -> parking.unpark(tempTicketNumber)).start();
             } else if (command.equals("l")) {
                 parking.carsList();
             } else if (command.equals("c")) {

@@ -3,7 +3,7 @@ package com.patrushev.parking_simulator;
 import java.util.Objects;
 
 public class Ticket {
-    private int id; //думаю диапазон равен от 1 до capacity паркинга
+    private int id;
 
     public Ticket(int id) {
         this.id = id;

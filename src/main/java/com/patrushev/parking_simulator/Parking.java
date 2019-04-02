@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 
 public class Parking {
-    Logger logger = LoggerFactory.getLogger(Parking.class);
+    private Logger logger = LoggerFactory.getLogger(Parking.class);
 
     //общее кол-во мест
     private int capacity;
@@ -36,7 +36,7 @@ public class Parking {
         logger.info("Создана парковка на {} мест", capacity);
     }
 
-    public void park(Car car) {
+    public synchronized void park(Car car) {
         logger.info("Машина с госномером {} собирается припарковаться", car.getNumber());
         if (parkedCars.size() < capacity) {
             try {
@@ -51,12 +51,12 @@ public class Parking {
             logger.info("На парковке есть место. Машина получила въездной билет с id - {}. Порядковый номер машины на парковке - {}", busyTicket.getId(), ordinalNumberOfLastCar);
             logger.info("Теперь на парковке {} свободных мест", getFreeSpace());
         } else {
-            logger.info("На парковке нет мест - машина ждет свою очередь");
+            logger.info("На парковке закончилось место - машина занимает место в очереди на въезд");
             waitingCars.add(car);
         }
     }
 
-    public void unpark(int ticketId) {
+    public synchronized void unpark(int ticketId) {
         logger.info("Машина с билетом с id - {} собирается покинуть парковку", ticketId);
         for (Ticket busyTicket : busyTickets) {
             if (busyTicket.getId() == ticketId) {
@@ -70,9 +70,11 @@ public class Parking {
                 busyTickets.remove(busyTicket);
                 logger.info("Машина с билетом с id - {} вернула билет и покинула парковку", ticketId);
                 logger.info("Теперь на парковке {} свободных мест", getFreeSpace());
-                if (waitingCars.size() > 0) { //наверно в этом методе это лучше вынести после цикла for - чтоб новые тачки заезжали только после того как выйдут все
-                    for (Car waitingCar : waitingCars) { //нифига так нельзя наверно, потому что каждый въезд/выезд должен быть в отдельном потоке - или прям здесь и запускать эти потоки
-                        new Thread(() -> park(waitingCar));
+                if (waitingCars.size() > 0) { //здесь запускаются все 5 потоков и 5 машин пытаются запарковаться по 5 раз
+                    for (Car waitingCar : waitingCars) {
+                        if (waitingCars.size() > 0) {
+                            new Thread(() -> park(waitingCar)).start();
+                        }
                     }
                 }
                 return;
@@ -83,9 +85,9 @@ public class Parking {
 
     public void carsList() {
         if (parkedCars.size() > 0) {
+            System.out.println("В данный момент на парковке находятся автомобили:");
             for (Map.Entry<Integer, Car> entry : parkedCars.entrySet()) {
-                System.out.println("В данный момент на парковке находятся автомобили:");
-                System.out.println("авто №" + entry.getKey() + "с билетом №" + entry.getValue().getTicket().getId());
+                System.out.println("авто №" + entry.getKey() + " с билетом №" + entry.getValue().getTicket().getId());
             }
         } else {
             System.out.println("Парковка пуста");
